@@ -1,0 +1,53 @@
+{
+    "bot_token": "",
+    "bot_log_channel": 0000000000000000000,
+    "log_retention_days": 3,
+    "templates": {
+        "forge_server": {
+            "executable": {
+                "type": "script",
+                "windows": "run.bat",
+                "linux": "run.sh"
+            },
+            "monitoring": true
+        },
+        "vanilla_server": {
+            "executable": {
+                "type": "jar",
+                "file": "server.jar"
+            },
+            "java_args": "-Xmx{memory} -Xms{min_memory} -jar {jar_file} nogui",
+            "monitoring": true
+        }
+    },
+    "servers": [
+        {
+            "name": "My Forge Server ",
+            "template": "forge_server",
+            "path": "path/to/forge/server",
+            "discord_log_channel": 000000000000000000,
+            "discord_chat_channel": 1111111111111111111
+        },
+        {
+            "name": "My Vanilla Server",
+            "template": "vanilla_server",
+            "path": "path/to/vanilla/server",
+            "discord_log_channel": 000000000000000000,
+            "discord_chat_channel": 1111111111111111111,
+            "variables": {
+                "memory": "2G",
+                "min_memory": "4G"
+            }
+        }
+    ],
+    "permissions": {
+        "start": [111111111111111111, 2222222222222222222],
+        "stop": [111111111111111111, 2222222222222222222],
+        "whitelist": [111111111111111111, 2222222222222222222],
+        "say": [111111111111111111],
+        "frigo": [111111111111111111],
+        "cmd": [111111111111111111, 2222222222222222222],
+        "sync": [111111111111111111, 2222222222222222222],
+        "status": [111111111111111111]
+    }
+}
