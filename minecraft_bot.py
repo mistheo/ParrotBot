@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from typing import List
 import json
+from dataclasses import dataclass, field
 import asyncio
 import subprocess
 import logging
@@ -243,6 +244,60 @@ def load_config():
         print(f"Erreur de format JSON : {e}")
         sys.exit(1)
 
+# ---------------------------------------------------------------------------
+# MetaData Server
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ServerMetadata:
+    """Holds runtime metadata for a running Minecraft server.
+
+    Parameters
+    ----------
+    None — instantiated with default values.
+
+    Examples
+    --------
+    >>> meta = ServerMetadata()
+    >>> meta.add_player("Notch")
+    >>> meta.player_count
+    1
+    >>> meta.remove_player("Notch")
+    >>> meta.player_count
+    0
+    """
+
+    online_players: set[str] = field(default_factory=set)
+
+    def add_player(self, username: str) -> None:
+        """Register a player as online.
+
+        Parameters
+        ----------
+        username : str
+            Minecraft username of the joining player.
+        """
+        self.online_players.add(username)
+
+    def remove_player(self, username: str) -> None:
+        """Unregister a player.
+
+        Parameters
+        ----------
+        username : str
+            Minecraft username of the leaving player.
+            No-op if the player is not tracked.
+        """
+        self.online_players.discard(username)
+
+    def clear(self) -> None:
+        """Reset all tracked players."""
+        self.online_players.clear()
+
+    @property
+    def player_count(self) -> int:
+        """int : Number of players currently online."""
+        return len(self.online_players)
 
 # ---------------------------------------------------------------------------
 # MinecraftServer
@@ -259,6 +314,7 @@ class MinecraftServer:
         self.is_running = False
         self.log_queue = queue.Queue()
         self.chat_queue = queue.Queue()
+        self.metadata = ServerMetadata()
         self.log_thread = None
         self.output_thread = None
 
@@ -341,6 +397,7 @@ class MinecraftServer:
             self._stop_log_monitoring()
 
             logger.info(f"Serveur '{self.name}' arrêté")
+            self.metadata.clear()
             return True
 
         except Exception as e:
@@ -673,11 +730,14 @@ class MinecraftBot(commands.Bot):
                         await channel.send(
                             f"**[{server_name}]** 🎮 `{event['player']}` : {event['message']}"
                         )
+                        
                     elif event["type"] == "join":
+                        server.metadata.add_player(event["player"])
                         await channel.send(
                             f"**[{server_name}]** ➡️ `{event['player']}` a rejoint le serveur"
                         )
                     elif event["type"] == "leave":
+                        server.metadata.remove_player(event["player"])
                         await channel.send(
                             f"**[{server_name}]** ⬅️ `{event['player']}` a quitté le serveur"
                         )
@@ -1066,8 +1126,21 @@ async def server_status(interaction: discord.Interaction):
         embed.add_field(name="Aucun serveur", value="Aucun serveur configuré", inline=False)
     else:
         for name, server in bot.servers.items():
-            status = "🟢 En ligne" if server.is_running else "🔴 Hors ligne"
-            embed.add_field(name=name, value=status, inline=True)
+            if server.is_running:
+                count = server.metadata.player_count
+                players = server.metadata.online_players
+
+                if count == 0:
+                    player_line = "*Aucun joueur connecté*"
+                else:
+                    player_list = "\t, ".join(f"`{p}`" for p in players)
+                    player_line = f"{player_list}"
+
+                value = f"🟢 En ligne ─ **{count}** joueur{'s' if count > 0 else ''}\n{player_line}"
+            else:
+                value = "🔴 Hors ligne"
+
+            embed.add_field(name=name, value=value, inline=False)
 
     await interaction.response.send_message(embed=embed)
 
