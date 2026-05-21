@@ -1,0 +1,6 @@
+/.venv
+/config.json
+/config_editor.py
+/discord_users_preferences.data
+/logs
+/start_config_editor.bat
